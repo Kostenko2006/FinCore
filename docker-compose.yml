@@ -1,0 +1,46 @@
+name: fincore
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fincore-postgres
+    environment:
+      POSTGRES_DB: fincore
+      POSTGRES_USER: fincore
+      POSTGRES_PASSWORD: fincore
+      TZ: Europe/Kyiv
+      PGTZ: Europe/Kyiv
+    ports:
+      - "5433:5432"
+    volumes:
+      - fincore_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fincore"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: fincore-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fincore-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=fincore;Username=fincore;Password=fincore
+      Jwt__Issuer: FinCore.Bank
+      Jwt__Audience: FinCore.Client
+      Jwt__Key: FinCoreBankDevelopmentSecretKey2026.ChangeMeInProduction
+      Jwt__ExpiresMinutes: 180
+      Cors__AllowedOrigins__0: http://localhost:5173
+      Cors__AllowedOrigins__1: http://127.0.0.1:5173
+      TZ: Europe/Kyiv
+    ports:
+      - "8080:8080"
+
+volumes:
+  fincore_postgres_data:
